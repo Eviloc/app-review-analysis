@@ -1,0 +1,22 @@
+# 环境密钥
+.env
+
+# conda虚拟环境，你已经删掉了，写上保险
+agent-env/
+*.venv/
+
+# python缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# VSCode
+.vscode/settings.json
+.vscode/*.log
+
+# jupyter
+.ipynb_checkpoints/
+
+# 输出缓存
+cache/*.json
