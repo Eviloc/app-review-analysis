@@ -1,0 +1,57 @@
+[
+  {
+    "review_id": "1709442328",
+    "title": "Great for beginners",
+    "content": "Love this app! Short workouts, no equipment needed. But the paywall pops up too often, very annoying when I just want free training.",
+    "rating": 4,
+    "version": "13.22.0",
+    "date": "2026‑05‑20T18:12:32‑07:00",
+    "clean_content": "Love this app! Short workouts, no equipment needed. But the paywall pops up too often, very annoying when I just want free training.",
+    "category": "体验问题",
+    "summary": "用户喜欢应用但抱怨付费墙出现频繁，影响使用体验。"
+  },
+  {
+    "review_id": "1708912451",
+    "title": "Too many subscription prompts",
+    "content": "Workout quality is fine, but every 2 minutes it asks me to subscribe. Almost impossible to use free version normally.",
+    "rating": 2,
+    "version": "13.22.0",
+    "date": "2026‑05‑18T10:44:11‑07:00",
+    "clean_content": "Workout quality is fine, but every 2 minutes it asks me to subscribe. Almost impossible to use free version normally.",
+    "category": "体验问题",
+    "summary": "免费版本使用时频繁弹出订阅提示，影响正常使用。"
+  },
+  {
+    "review_id": "1707881229",
+    "title": "Perfect home exercise",
+    "content": "Good for women who exercise at home. Clear animation guidance. Wish there were more free training plans.",
+    "rating": 5,
+    "version": "13.21.1",
+    "date": "2026‑05‑12T09:21:45‑07:00",
+    "clean_content": "Good for women who exercise at home. Clear animation guidance. Wish there were more free training plans.",
+    "category": "功能建议",
+    "summary": "希望增加更多免费训练计划"
+  },
+  {
+    "review_id": "1706543118",
+    "title": "Videos lag on iPhone",
+    "content": "When doing workout the animation lags and stutters. Phone gets hot quickly. Hope dev can fix performance problem.",
+    "rating": 2,
+    "version": "13.21.1",
+    "date": "2026‑05‑06T14:33:20‑07:00",
+    "clean_content": "When doing workout the animation lags and stutters. Phone gets hot quickly. Hope dev can fix performance problem.",
+    "category": "功能Bug",
+    "summary": "用户反馈运动时动画卡顿，手机发热，希望修复性能问题。"
+  },
+  {
+    "review_id": "1705114876",
+    "title": "Good but buggy",
+    "content": "Some exercise timers count wrong. Sometimes it skips movement. Otherwise content is really helpful.",
+    "rating": 3,
+    "version": "13.20.0",
+    "date": "2026‑04‑28T08:10:02‑07:00",
+    "clean_content": "Some exercise timers count wrong. Sometimes it skips movement. Otherwise content is really helpful.",
+    "category": "功能Bug",
+    "summary": "部分运动计时器计时不准确，有时会跳过动作。"
+  }
+]
