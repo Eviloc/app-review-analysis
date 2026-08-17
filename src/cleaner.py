@@ -1,68 +1,69 @@
-# src/cleaner.py
-import json
-import os
+"""
+评论清洗模块 - 确定性规则
+去重、过滤、字段标准化
+"""
 import re
-from pathlib import Path
-
-BASE_DIR = Path(__file__).parent.parent
-CACHE_DIR = BASE_DIR / "cache"
-OUTPUT_DIR = BASE_DIR / "output"
-OUTPUT_DIR.mkdir(exist_ok=True)
 
 
-def clean_text(raw_text: str) -> str:
-    """文本清洗：去除换行、多余空格、特殊符号"""
-    if not raw_text:
-        return ""
-    text = raw_text.replace("\n", " ").replace("\r", " ")
-    text = re.sub(r"\s+", " ", text)
-    text = text.strip()
-    return text
+def clean_reviews(raw_reviews: list, min_rating: int = 1) -> list:
+    """
+    清洗评论：去重、过滤、标准化字段
+    返回清洗后的评论列表，每条包含 clean_content 字段
+    """
+    seen_ids = set()
+    seen_contents = set()
+    cleaned = []
 
-
-def load_raw_reviews(json_path: str):
-    """加载原始采集的评论json"""
-    with open(json_path, "r", encoding="utf‑8") as f:
-        return json.load(f)
-
-
-def filter_reviews(review_list):
-    """过滤无效评论"""
-    valid = []
-    discard = []
-    for item in review_list:
-        content = clean_text(item.get("content", ""))
-        # 过滤条件：文本长度小于5直接丢弃
-        if len(content) < 5:
-            discard.append(item)
+    for r in raw_reviews:
+        # 过滤评分
+        rating = r.get("rating", 0)
+        if rating < min_rating:
             continue
-        item["clean_content"] = content
-        valid.append(item)
-    return valid, discard
 
+        # 去重：review_id
+        rid = str(r.get("review_id", ""))
+        if rid and rid in seen_ids:
+            continue
+        seen_ids.add(rid)
 
-def run_clean_pipeline(input_json_name: str):
-    """执行完整清洗流水线"""
-    input_path = str(CACHE_DIR / input_json_name)
-    raw_data = load_raw_reviews(input_path)
-    raw_count = len(raw_data)
+        # 清洗内容
+        content = r.get("content", "")
+        if not content or not content.strip():
+            continue
 
-    valid_reviews, discard_reviews = filter_reviews(raw_data)
-    valid_count = len(valid_reviews)
-    discard_count = len(discard_reviews)
+        # 去重：内容相似度
+        content_key = re.sub(r"\s+", "", content)[:100].lower()
+        if content_key in seen_contents:
+            continue
+        seen_contents.add(content_key)
 
-    out_file = OUTPUT_DIR / "cleaned_reviews.json"
-    with open(out_file, "w", encoding="utf‑8") as f:
-        json.dump(valid_reviews, f, ensure_ascii=False, indent=2)
+        # 基础清洗：去除HTML标签、多余空白
+        clean_content = re.sub(r"<[^>]+>", "", content)
+        clean_content = re.sub(r"\s+", " ", clean_content).strip()
 
-    print(f"===== 评论清洗完成 =====")
-    print(f"原始评论总数：{raw_count}")
-    print(f"丢弃无效评论：{discard_count}")
-    print(f"保留有效评论：{valid_count}")
-    print(f"清洗结果输出路径：{out_file.resolve()}")
-    return str(out_file)
+        # 截断过长内容
+        if len(clean_content) > 500:
+            clean_content = clean_content[:500] + "..."
+
+        cleaned.append({
+            "review_id": rid,
+            "title": r.get("title", ""),
+            "content": content,
+            "clean_content": clean_content,
+            "rating": rating,
+            "version": r.get("version", ""),
+            "date": r.get("date", ""),
+            "region": r.get("region", "unknown")
+        })
+
+    return cleaned
 
 
 if __name__ == "__main__":
-    # 修改为你cache里实际的json文件名
-    run_clean_pipeline("app_839285684.json")
+    test_data = [
+        {"review_id": "1", "content": "  Great app!  ", "rating": 5},
+        {"review_id": "1", "content": "Duplicate", "rating": 4},
+        {"review_id": "2", "content": "", "rating": 3},
+    ]
+    result = clean_reviews(test_data)
+    print(f"清洗后: {len(result)} 条")
