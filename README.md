@@ -1,96 +1,223 @@
-# LaienTech iOS App Review Analysis and Version Planning Assessment
+```
+# App Store 评论智能分析工具
 
-## 项目背景
-本项目针对美区App Store健身App（Workout for Women: Home Gym, id:839285684）完成用户评论全流程分析，实现从评论采集、清洗、大模型分类分析，最终输出版本规划评估报告。
-> 评论数据源：**美国区App Store**
+基于大模型的 App Store 评论全流程分析工具：采集 → 清洗 → 动态分类 → 问题分析 → PRD → 测试用例 → 追溯校验。
+
+## 功能特性
+
+- **数据采集**：App Store 美区 RSS 接口采集，支持 JSON/CSV 文件导入
+- **评论清洗**：去重、过滤、字段标准化（确定性规则）
+- **动态分类**：大模型根据分析目标自动生成分分类体系，不依赖固定关键词
+- **问题分析**：挖掘核心痛点，附带证据、置信度、矛盾反馈
+- **PRD 生成**：需求追溯到原始评论，分版本优先级
+- **测试用例**：用例关联需求和评论，可验证
+- **追溯校验**：检查每条结论是否有证据支撑
+- **Streamlit UI**：交互式界面，展示全流程进度和结果
 
 ## 技术栈
-- Python 3.14
-- Conda 虚拟环境：review_analyzer
-- openai SDK：调用DeepSeek‑Chat大模型做评论理解、分类、摘要
-- JSON：数据中间存储
-- Markdown：输出版本规划评估报告
 
-## 项目目录结构
-评论整理助手 /
-├─ src/                     # 核心业务模块源码
-│   ├─ collector.py         # 模块 1：App Store 评论采集，原始数据输出 cache
-│   ├─ cleaner.py           # 模块 2：评论文本清洗、过滤无效评论
-│   ├─ classifier.py       # 模块 3：调用 DeepSeek 完成评论分类与摘要提取
-│   └─ report_generator.py # 模块 4：统计分析，生成版本规划 Markdown 报告
-├─ cache/                   # 模块 1 输出：原始采集评论（运行生成，git 忽略）
-├─ output/                  # 模块 2‑4 输出：清洗数据、分类结果、report.md 报告（运行生成，git 忽略）
-├─ requirements.txt        # Python 依赖清单
-├─ .gitignore               # Git 忽略配置
-└─ README.md                # 项目说明文档
+- **UI**: Streamlit
+- **大模型**: DashScope 通义千问 (qwen-turbo)
+- **数据采集**: iTunes RSS API
+- **数据处理**: pandas
 
-## 环境部署与运行
-### 1. 创建并激活虚拟环境
-```powershell
+## 快速开始
+### 0. 创建虚拟环境（可选）
+
+```bash
+conda create -n review_analyzer python=3.12
 conda activate review_analyzer
 
-### 2. 安装依赖
-```pip install -r requirements.txt
+### 1. 安装依赖
 
-### 3. 修改 `src/classifier.py`，填入自己的 DeepSeek api_key
-
-### 4. 按顺序执行完整流水线
-    # 步骤1：采集美区App Store评论
-    python src/collector.py
-
-    # 步骤2：评论清洗过滤
-    python src/cleaner.py
-
-    # 步骤3：大模型评论分类打标签、生成摘要
-    python src/classifier.py
-
-    # 步骤4：生成版本规划评估报告 output/report.md
-    python src/report_generator.py
-
-
-## 输出产物说明
-
-1. `cache/*.json`：从 App Store 抓取的原始用户评论
-2. `output/cleaned_reviews.json`：清洗过滤后的有效评论数据集
-3. `output/classified_reviews.json`：带类别、摘要标签的评论数据
-4. `output/report.md`：最终交付 —— 版本规划评估报告，包含统计、问题汇总、迭代版本建议
-
-## 流水线流程
-
-**数据采集 → 评论清洗预处理 → LLM 智能分类 & 摘要提取 → 统计分析 + 版本规划报告生成**
-
+```bash
+pip install -r requirements.txt
 ```
 
-保存后提交：
-```powershell
-# git add README.md
-# git commit -m "docs:修复markdown代码块、缩进语法错误"
-```
-
-<!-- 导出依赖清单（确认在`review_analyzer`环境） -->
+### 2. 配置环境变量
 
 ```
-pip freeze > requirements.txt
-git add requirements.txt
-git commit -m "chore:导出项目依赖requirements.txt"
+cp .env.example .env
 ```
 
-#项目全部交付清单
+编辑 `.env`，必填项：
 
 ```
-评论整理助手/
-├─ src/                     # 4份模块源码
-├─ cache/                   # 采集原始json数据
-├─ output/                  # 3份输出文件，含report.md作业报告
-├─ .gitignore
-├─ README.md
-└─ requirements.txt
+# 通义千问 API Key（必填，国内服务，不需要代理）
+DASHSCOPE_API_KEY=your_api_key_here
+
+# 代理配置（仅采集美区评论时需要，dashscope 不需要代理）
+# 必须使用美国节点，香港/日本节点可能返回空数据
+# HTTP_PROXY=http://127.0.0.1:7890
+# HTTPS_PROXY=http://127.0.0.1:7890
+```
 
 > 
-> 重要：**不要 git push**，本地 git 保存开发记录即可；上交压缩包务必带上 cache、output 文件夹。
+> **注意**：`DASHSCOPE_API_KEY` 是阿里云国内服务，**直连即可，不要走代理**。代理仅用于访问美区 App Store RSS 接口。如果配置了代理但代理软件未启动，会导致 dashscope 调用失败。
 
-### 查看全部开发提交记录
+### 3. 运行
 
 ```
-git log --oneline
+streamlit run app.py
+```
+
+浏览器自动打开 `http://localhost:8501`
+
+## 使用方式
+
+### 方式一：在线采集（需要美国代理）
+
+1. 在侧边栏输入 App Store 美区链接
+2. 填写分析目标 / 约束条件
+3. 确认 `.env` 中已配置代理且代理软件运行（美国节点）
+4. 点击「开始分析」
+
+### 方式二：导入数据（无代理环境推荐）
+
+1. 在侧边栏「数据导入」区域上传 JSON/CSV 文件
+2. 填写分析目标 / 约束条件
+3. 点击「开始分析」
+
+项目自带样例数据：`cache/app_839285684.json`（5 条美区评论，来源标注 `region: "us"`），可直接用于演示和测试。
+
+### 支持的导入格式
+
+**JSON**：数组格式，每条需包含 `content`（或 `review`/`text`）和 `rating` 字段
+
+```
+[
+  {"review_id": "1", "content": "评论内容", "rating": 5, "title": "标题"}
+]
+```
+
+**CSV**：需包含 `content` 和 `rating` 列
+
+## 项目结构
+
+```
+├── app.py                  # Streamlit 主入口
+├── src/
+│   ├── collector.py        # 数据采集（RSS多端点 + 文件导入）
+│   ├── cleaner.py          # 评论清洗（去重、过滤、标准化）
+│   ├── classifier.py       # 动态分类（大模型根据目标生成分类体系）
+│   ├── analyzer.py         # 问题分析（证据、置信度、矛盾反馈）
+│   ├── prd_generator.py    # PRD 生成（需求追溯到评论ID）
+│   ├── test_generator.py   # 测试用例生成（关联需求和评论）
+│   └── traceability.py     # 追溯链路管理与校验
+├── output/                 # 各阶段输出（运行后生成）
+├── cache/                  # 采集缓存 + 样例数据
+│   └── app_839285684.json  # 样例美区评论数据（5条）
+├── .env.example            # 环境变量示例
+├── requirements.txt        # 依赖
+└── README.md
+```
+
+## 规则与大模型分工
+
+| 步骤 | 实现方式 | 选择理由 |
+|------|---------|---------|
+| 数据采集 | 确定性规则（HTTP请求） | 接口格式固定，规则可靠，无需语义理解 |
+| 去重/过滤/字段标准化 | 确定性规则 | 逻辑明确可枚举，规则执行更稳定高效 |
+| 分类体系生成 | 大模型 | 需根据分析目标动态适配，无法预设固定标签 |
+| 评论分类 | 大模型 | 需语义理解，不能靠关键词匹配（如"付费墙"属体验问题而非价格） |
+| 问题挖掘与归纳 | 大模型 | 需跨评论归纳推理，识别隐含痛点和矛盾 |
+| 置信度/矛盾判断 | 大模型 + 统计 | 语义判断为主，样本量统计作为客观支撑 |
+| PRD需求生成 | 大模型 | 需将用户反馈转化为产品语言，追溯证据 |
+| 测试用例生成 | 大模型 | 需理解需求场景，设计可执行的验证步骤 |
+| 追溯校验 | 确定性规则 | ID关联检查，逻辑明确，规则更可靠 |
+| 评分分布/分类统计 | 确定性统计 | 客观计算，无需模型，结果可复现 |
+
+## 大模型使用说明
+
+表格
+
+| 模块 | 用途 | 模型 | 温度 | 实现方式 |
+| --- | --- | --- | --- | --- |
+| classifier | 动态生成分分类体系 + 逐条分类 | qwen-turbo | 0.1 | 大模型语义分析 |
+| analyzer | 问题挖掘、置信度、矛盾反馈 | qwen-turbo | 0.3 | 大模型语义分析 |
+| prd_generator | 需求生成、版本规划 | qwen-turbo | 0.3 | 大模型语义分析 |
+| test_generator | 测试用例生成 | qwen-turbo | 0.2 | 大模型语义分析 |
+
+> 
+> 数据采集、去重、字段标准化、追溯校验使用确定性规则实现；语义分类、问题归纳、需求生成、测试用例生成由大模型驱动。
+
+### 核心 Prompt 策略
+
+- **动态分类**：先让模型根据分析目标生成分分类体系，再逐条分类，避免硬编码标签
+- **问题分析**：要求模型输出证据评论 ID、样本数量、置信度、矛盾反馈
+- **PRD 生成**：每条需求必须关联问题 ID 和评论 ID，分版本优先级
+- **测试用例**：每条用例必须关联需求 ID 和评论 ID，步骤可执行、预期可验证
+
+### 减少幻觉的手段
+
+1. 每条结论必须关联原始评论 ID，无证据的结论在校验阶段被标记
+2. 追溯校验模块自动检查证据完整性，输出通过率
+3. 明确区分客观统计数据（评分分布、分类统计）和模型生成结论
+4. 低置信度结论明确标注（高 / 中 / 低）
+5. 矛盾反馈单独识别和展示，不强行合并
+6. 模型输出严格 JSON 格式，正则提取 + 异常兜底
+
+## 数据来源与局限性
+
+### 采集方式
+
+iTunes 官方 RSS 接口：`https://itunes.apple.com/us/rss/customerreviews/id={app_id}/page={page}/json`
+
+代码自动尝试 3 种 URL 格式变体，提高成功率。
+
+### 局限性
+
+- **代理要求**：美区数据必须通过美国代理访问，国内 IP 直连会返回空数据（HTTP 200 但无 entry）
+- **数据量限制**：RSS 接口最多返回 500 条（10 页 × 50 条 / 页）
+- **地区限制**：部分 App 可能因地区策略在美区无评论
+- **实时性**：RSS 数据有延迟，非实时评论
+- **无网络环境**：支持 JSON/CSV 导入，样例数据见 `cache/` 目录
+
+### 样例数据说明
+
+`cache/app_839285684.json` 为预先采集的美区真实评论数据（5 条），用于：
+
+- 无代理环境下的功能演示
+- 开发调试
+- 面试官离线查看效果
+
+> 
+> 样例数据仅为缓存，不替代正常联网采集能力。程序支持任意 App 链接和任意评论数据集。
+
+## 异常处理
+
+表格
+
+| 场景 | 处理策略 |
+| --- | --- |
+| 采集失败 | 自动尝试 3 种端点格式；支持文件导入兜底 |
+| 模型调用失败 | 返回错误信息，不中断整体流程，该条归入 "其他" |
+| JSON 解析失败 | 正则提取 + markdown 清洗 + 外层引号剥离 |
+| 分类不在白名单 | 归入 "其他" 分类 |
+| 追溯无证据 | 在校验结果中标记为无效，列出具体项 |
+| 空数据输入 | 明确提示，不执行后续阶段 |
+
+## 追溯链路
+
+完整链路：**用户评论 → 分析结论 → 产品需求 → 测试用例**
+
+- 每个问题（Problem）关联多条评论证据
+- 每条需求（Requirement）关联问题 ID 和评论 ID
+- 每条测试用例（Test Case）关联需求 ID 和评论 ID
+- 追溯校验模块自动验证链路完整性，输出通过率
+
+## 许可证
+
+MIT
+
+```
+
+主要补充了：
+1. **环境变量配置**里明确 dashscope 不需要代理，代理仅用于美区采集
+2. **使用方式**拆成在线采集和导入数据两种，说明样例数据位置
+3. **大模型说明**增加了 Prompt 策略和实现方式区分
+4. **数据局限性**详细说明了代理要求（必须美国节点）
+5. **样例数据说明**明确标注用途，不替代联网能力
+6. **异常处理**改成表格更清晰
+7. 新增**追溯链路**章节
 ```

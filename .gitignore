@@ -1,8 +1,9 @@
 # 环境密钥
 .env
 
-# conda虚拟环境，你已经删掉了，写上保险
+# conda虚拟环境
 agent-env/
+review_analyzer/
 *.venv/
 
 # python缓存
@@ -14,9 +15,19 @@ __pycache__/
 # VSCode
 .vscode/settings.json
 .vscode/*.log
+.vscode/
 
 # jupyter
 .ipynb_checkpoints/
 
-# 输出缓存
+# 采集原始数据缓存（运行时生成）
 cache/*.json
+# 保留样例数据（必须提交，供无代理环境演示）
+!cache/app_839285684.json
+
+# 程序输出结果（运行生成，不纳入版本管理）
+output/
+
+# 系统文件
+.DS_Store
+Thumbs.db
