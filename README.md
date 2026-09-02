@@ -1,18 +1,21 @@
-```
 # App Store 评论智能分析工具
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+基于大模型（通义千问）的 App Store 评论全流程分析流水线：
+**采集 → 清洗 → 动态分类 → 问题分析 → PRD 生成 → 测试用例 → 追溯校验**
+全流程自动串联，每条结论都能回溯到原始评论。
 
-基于大模型的 App Store 评论全流程分析工具：采集 → 清洗 → 动态分类 → 问题分析 → PRD → 测试用例 → 追溯校验。
-
-## 功能特性
-
-- **数据采集**：App Store 美区 RSS 接口采集，支持 JSON/CSV 文件导入
-- **评论清洗**：去重、过滤、字段标准化（确定性规则）
-- **动态分类**：大模型根据分析目标自动生成分分类体系，不依赖固定关键词
-- **问题分析**：挖掘核心痛点，附带证据、置信度、矛盾反馈
-- **PRD 生成**：需求追溯到原始评论，分版本优先级
-- **测试用例**：用例关联需求和评论，可验证
-- **追溯校验**：检查每条结论是否有证据支撑
-- **Streamlit UI**：交互式界面，展示全流程进度和结果
+## 两种使用方式
+| 方式 | 适合场景 |
+| --- | --- |
+| **Streamlit Web 界面** | 交互式分析：输入 App 链接或导入数据，可视化查看结果 |
+| **MCP Server** | 让 Claude Desktop、Cursor 等 AI 客户端直接调用 8 个分析工具 |
+## 核心亮点
+- **四级证据追溯链**：评论 → 问题 → 需求 → 测试用例逐级关联，校验模块自动检查每条结论是否有证据支撑，无证据结论直接拦截（样例数据实测通过率 100%）
+- **动态分类体系**：分类标签不硬编码，由模型根据分析目标现场生成——换分析目标无需改代码
+- **规则与大模型分工**：可枚举逻辑（去重、字段标准化、追溯校验）用确定性规则，语义理解（分类、归纳、生成）交给模型，详见[分工设计](#规则与大模型分工)
+- **多层防幻觉**：结论强制携带证据 ID、客观统计与模型结论分离标注、低置信度显式标记
+- **离线可用**：内置样例数据，无代理 / 无网络环境也能完整演示
 
 ## 技术栈
 
@@ -23,6 +26,57 @@
 
 ## 快速开始
 
+## 作为 MCP Server 使用（Claude Desktop / Cursor）
+本仓库同时是一个 MCP Server：整条分析流水线被封装为 8 个标准 MCP 工具，AI 客户端可以像调用函数一样完成「分析某个 App 的评论并产出 PRD」的完整任务。
+### 工具一览
+| 工具 | 作用 |
+| --- | --- |
+| `load_reviews` | 加载评论：App 采集 / JSON·CSV 导入 / 内置样例数据（`use_sample_data=true`，无需代理） |
+| `classify_reviews` | 按分析目标动态生成分类体系并逐条分类 |
+| `analyze_problems` | 挖掘核心问题，输出证据、置信度、矛盾反馈 |
+| `generate_prd` | 生成需求文档，每条需求关联问题与评论，分版本排期 |
+| `generate_test_cases` | 生成测试用例，关联需求与评论 |
+| `validate_traceability` | 校验四级追溯链完整性，输出通过率 |
+| `run_full_analysis` | 一键执行全流程 |
+| `get_results` | 查询各阶段结果与运行状态 |
+典型调用顺序：`load_reviews → classify_reviews → analyze_problems → generate_prd → generate_test_cases → validate_traceability`，或直接 `run_full_analysis`。
+### Claude Desktop 配置
+配置文件：Windows `%APPDATA%\Claude\claude_desktop_config.json`（macOS：`~/Library/Application Support/Claude/claude_desktop_config.json`）
+```json
+{
+  "mcpServers": {
+    "review-analyzer": {
+      "command": "python",
+      "args": ["C:/改成你的绝对路径/mcp_server.py"],
+      "env": {
+        "DASHSCOPE_API_KEY": "your_api_key"
+      }
+    }
+  }
+}
+```
+> `args` 必须是绝对路径。若项目根目录已配好 `.env`（含 `DASHSCOPE_API_KEY`），`env` 段可省略。
+### Cursor 配置
+项目根目录 `.cursor/mcp.json`：
+```json
+{
+  "mcpServers": {
+    "review-analyzer": {
+      "command": "python",
+      "args": ["./mcp_server.py"]
+    }
+  }
+}
+```
+### 调试
+```bash
+npx @modelcontextprotocol/inspector python mcp_server.py
+```
+> 分类阶段逐条调用大模型，耗时 1-3 分钟，Inspector 的 Request Timeout 建议设为 300000。
+### 效果示例
+配置完成后在 Claude Desktop 里直接说：
+> 帮我分析这个 App 的评论：https://apps.apple.com/us/app/xxx/id839285684，重点是订阅转化和付费墙体验
+Claude 会自动串联工具完成采集、分类、问题分析与 PRD 生成，每条结论可回溯到原始评论。
 ### 0. 创建虚拟环境（可选）
 
 ```bash
@@ -109,6 +163,7 @@ streamlit run app.py
 
 ```
 ├── app.py                  # Streamlit 主入口
+├── mcp_server.py           # MCP Server 入口（8 个工具，供 Claude/Cursor 调用）
 ├── 启动.bat                # Windows一键启动脚本
 ├── src/
 │   ├── collector.py        # 数据采集（RSS多端点 + 文件导入）
