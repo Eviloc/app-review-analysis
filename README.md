@@ -1,0 +1,283 @@
+# App Store 评论智能分析工具
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+基于大模型（通义千问）的 App Store 评论全流程分析流水线：
+**采集 → 清洗 → 动态分类 → 问题分析 → PRD 生成 → 测试用例 → 追溯校验**
+全流程自动串联，每条结论都能回溯到原始评论。
+
+## 两种使用方式
+| 方式 | 适合场景 |
+| --- | --- |
+| **Streamlit Web 界面** | 交互式分析：输入 App 链接或导入数据，可视化查看结果 |
+| **MCP Server** | 让 Claude Desktop、Cursor 等 AI 客户端直接调用 9 个分析工具 |
+## 核心亮点
+- **四级证据追溯链**：评论 → 问题 → 需求 → 测试用例逐级关联，校验模块自动检查每条结论是否有证据支撑，无证据结论直接拦截（样例数据实测通过率 100%）
+- **动态分类体系**：分类标签不硬编码，由模型根据分析目标现场生成——换分析目标无需改代码
+- **规则与大模型分工**：可枚举逻辑（去重、字段标准化、追溯校验）用确定性规则，语义理解（分类、归纳、生成）交给模型，详见[分工设计](#规则与大模型分工)
+- **多层防幻觉**：结论强制携带证据 ID、客观统计与模型结论分离标注、低置信度显式标记
+- **离线可用**：内置样例数据，无代理 / 无网络环境也能完整演示
+
+## 技术栈
+
+- **UI**: Streamlit
+- **大模型**: DashScope 通义千问 (qwen-plus)
+- **数据采集**: iTunes RSS API
+- **数据处理**: pandas
+
+## 快速开始
+
+## 作为 MCP Server 使用（Claude Desktop / Cursor）
+本仓库同时是一个 MCP Server：整条分析流水线被封装为 9 个标准 MCP 工具，AI 客户端可以像调用函数一样完成「分析某个 App 的评论并产出 PRD」的完整任务。
+### 工具一览
+| 工具 | 作用 |
+| --- | --- |
+| `load_reviews` | 加载评论：App 采集 / JSON·CSV 导入 / 内置样例数据（`use_sample_data=true`，无需代理） |
+| `classify_reviews` | 按分析目标动态生成分类体系并逐条分类 |
+| `analyze_problems` | 挖掘核心问题，输出证据、置信度、矛盾反馈 |
+| `generate_prd` | 生成需求文档，每条需求关联问题与评论，分版本排期 |
+| `generate_test_cases` | 生成测试用例，关联需求与评论 |
+| `validate_traceability` | 校验四级追溯链完整性，输出通过率 |
+| `run_full_analysis` | 一键执行全流程 |
+| `get_results` | 查询各阶段结果与运行状态 |
+| `export_csv` | 把任意阶段结果导出为 CSV（Excel 友好，处理 BOM 与动态表头） |
+典型调用顺序：`load_reviews → classify_reviews → analyze_problems → generate_prd → generate_test_cases → validate_traceability`，或直接 `run_full_analysis`。
+### Claude Desktop 配置
+配置文件：Windows `%APPDATA%\Claude\claude_desktop_config.json`（macOS：`~/Library/Application Support/Claude/claude_desktop_config.json`）
+```json
+{
+  "mcpServers": {
+    "review-analyzer": {
+      "command": "python",
+      "args": ["C:/改成你的绝对路径/mcp_server.py"],
+      "env": {
+        "DASHSCOPE_API_KEY": "your_api_key"
+      }
+    }
+  }
+}
+```
+> `args` 必须是绝对路径。若项目根目录已配好 `.env`（含 `DASHSCOPE_API_KEY`），`env` 段可省略。
+### Cursor 配置
+项目根目录 `.cursor/mcp.json`：
+```json
+{
+  "mcpServers": {
+    "review-analyzer": {
+      "command": "python",
+      "args": ["./mcp_server.py"]
+    }
+  }
+}
+```
+### 调试
+```bash
+npx @modelcontextprotocol/inspector python mcp_server.py
+```
+> 分类阶段逐条调用大模型，耗时 1-3 分钟，Inspector 的 Request Timeout 建议设为 300000。
+### 效果示例
+配置完成后在 Claude Desktop 里直接说：
+> 帮我分析这个 App 的评论：https://apps.apple.com/us/app/xxx/id839285684，重点是订阅转化和付费墙体验
+Claude 会自动串联工具完成采集、分类、问题分析与 PRD 生成，每条结论可回溯到原始评论。
+### 0. 创建虚拟环境（可选）
+
+```bash
+conda create -n review_analyzer python=3.12
+conda activate review_analyzer
+```
+
+### 1. 安装依赖
+
+```
+pip install -r requirements.txt
+```
+
+### 2. 配置环境变量
+
+```
+cp .env.example .env
+```
+
+编辑 `.env`，必填项：
+
+```
+# 通义千问 API Key（必填，国内服务，不需要代理）
+DASHSCOPE_API_KEY=your_api_key_here
+
+# 代理配置（仅采集美区评论时需要，dashscope 不需要代理）
+# 必须使用美国节点，香港/日本节点可能返回空数据
+# HTTP_PROXY=http://127.0.0.1:7890
+# HTTPS_PROXY=http://127.0.0.1:7890
+```
+
+> 
+> **注意**：`DASHSCOPE_API_KEY` 是阿里云国内服务，**直连即可，不要走代理**。代理仅用于访问美区 App Store RSS 接口。如果配置了代理但代理软件未启动，会导致 dashscope 调用失败。
+
+### 3. 运行
+
+```
+streamlit run app.py
+```
+
+浏览器自动打开 `http://localhost:8501`
+
+### 4. Windows 用户一键启动（可选）
+
+双击项目根目录下的 `启动.bat`，脚本会自动：
+
+- 检测并创建 `review_analyzer` 虚拟环境
+- 安装依赖
+- 检测并提示配置 `.env`（填入 DashScope API Key）
+- 启动 Streamlit 应用
+
+首次运行需要等待环境创建和依赖安装（约 2-5 分钟）。
+
+## 使用方式
+
+### 方式一：在线采集（需要美国代理）
+
+1. 在侧边栏输入 App Store 美区链接
+2. 填写分析目标 / 约束条件
+3. 确认 `.env` 中已配置代理且代理软件运行（美国节点）
+4. 点击「开始分析」
+
+### 方式二：导入数据（无代理环境推荐）
+
+1. 在侧边栏「数据导入」区域上传 JSON/CSV 文件
+2. 填写分析目标 / 约束条件
+3. 点击「开始分析」
+
+项目自带样例数据：`cache/app_839285684.json`（5 条美区评论，来源标注 `region: "us"`），可直接用于演示和测试。
+
+### 支持的导入格式
+
+**JSON**：数组格式，每条需包含 `content`（或 `review`/`text`）和 `rating` 字段
+
+```
+[
+  {"review_id": "1", "content": "评论内容", "rating": 5, "title": "标题"}
+]
+```
+
+**CSV**：需包含 `content` 和 `rating` 列
+
+## 项目结构
+
+```
+├── app.py                  # Streamlit 主入口
+├── mcp_server.py           # MCP Server 入口（9 个工具，供 Claude/Cursor 调用）
+├── 启动.bat                # Windows一键启动脚本
+├── src/
+│   ├── collector.py        # 数据采集（RSS多端点 + 文件导入）
+│   ├── cleaner.py          # 评论清洗（去重、过滤、标准化）
+│   ├── classifier.py       # 动态分类（大模型根据目标生成分类体系）
+│   ├── analyzer.py         # 问题分析（证据、置信度、矛盾反馈）
+│   ├── prd_generator.py    # PRD 生成（需求追溯到评论ID）
+│   ├── test_generator.py   # 测试用例生成（关联需求和评论）
+│   └── traceability.py     # 追溯链路管理与校验
+├── output/                 # 各阶段输出（运行后生成）
+├── cache/                  # 采集缓存 + 样例数据
+│   └── app_839285684.json  # 样例美区评论数据（5条）
+├── .env.example            # 环境变量示例
+├── requirements.txt        # 依赖
+└── README.md
+```
+
+## 规则与大模型分工
+
+表格
+
+| 步骤 | 实现方式 | 选择理由 |
+| --- | --- | --- |
+| 数据采集 | 确定性规则（HTTP 请求） | 接口格式固定，规则可靠，无需语义理解 |
+| 去重 / 过滤 / 字段标准化 | 确定性规则 | 逻辑明确可枚举，规则执行更稳定高效 |
+| 分类体系生成 | 大模型 | 需根据分析目标动态适配，无法预设固定标签 |
+| 评论分类 | 大模型 | 需语义理解，不能靠关键词匹配（如 "付费墙" 属体验问题而非价格） |
+| 问题挖掘与归纳 | 大模型 | 需跨评论归纳推理，识别隐含痛点和矛盾 |
+| 置信度 / 矛盾判断 | 大模型 + 统计 | 语义判断为主，样本量统计作为客观支撑 |
+| PRD 需求生成 | 大模型 | 需将用户反馈转化为产品语言，追溯证据 |
+| 测试用例生成 | 大模型 | 需理解需求场景，设计可执行的验证步骤 |
+| 追溯校验 | 确定性规则 | ID 关联检查，逻辑明确，规则更可靠 |
+| 评分分布 / 分类统计 | 确定性统计 | 客观计算，无需模型，结果可复现 |
+
+## 大模型使用说明
+
+表格
+
+| 模块 | 用途 | 模型 | 温度 | 实现方式 |
+| --- | --- | --- | --- | --- |
+| classifier | 动态生成分分类体系 + 逐条分类 | qwen-plus | 0.1 | 大模型语义分析 |
+| analyzer | 问题挖掘、置信度、矛盾反馈 | qwen-plus | 0.3 | 大模型语义分析 |
+| prd_generator | 需求生成、版本规划 | qwen-plus | 0.3 | 大模型语义分析 |
+| test_generator | 测试用例生成 | qwen-plus | 0.2 | 大模型语义分析 |
+
+> 
+> 数据采集、去重、字段标准化、追溯校验使用确定性规则实现；语义分类、问题归纳、需求生成、测试用例生成由大模型驱动。
+
+### 核心 Prompt 策略
+
+- **动态分类**：先让模型根据分析目标生成分分类体系，再逐条分类，避免硬编码标签
+- **问题分析**：要求模型输出证据评论 ID、样本数量、置信度、矛盾反馈
+- **PRD 生成**：每条需求必须关联问题 ID 和评论 ID，分版本优先级
+- **测试用例**：每条用例必须关联需求 ID 和评论 ID，步骤可执行、预期可验证
+
+### 减少幻觉的手段
+
+1. 每条结论必须关联原始评论 ID，无证据的结论在校验阶段被标记
+2. 追溯校验模块自动检查证据完整性，输出通过率
+3. 明确区分客观统计数据（评分分布、分类统计）和模型生成结论
+4. 低置信度结论明确标注（高 / 中 / 低）
+5. 矛盾反馈单独识别和展示，不强行合并
+6. 模型输出严格 JSON 格式，正则提取 + 异常兜底
+
+## 数据来源与局限性
+
+### 采集方式
+
+iTunes 官方 RSS 接口：`https://itunes.apple.com/us/rss/customerreviews/id={app_id}/page={page}/json`
+
+代码自动尝试 3 种 URL 格式变体，提高成功率。
+
+### 局限性
+
+- **代理要求**：美区数据必须通过美国代理访问，国内 IP 直连会返回空数据（HTTP 200 但无 entry）
+- **数据量限制**：RSS 接口最多返回 500 条（10 页 × 50 条 / 页）
+- **地区限制**：部分 App 可能因地区策略在美区无评论
+- **实时性**：RSS 数据有延迟，非实时评论
+- **无网络环境**：支持 JSON/CSV 导入，样例数据见 `cache/` 目录
+
+### 样例数据说明
+
+`cache/app_839285684.json` 为预先采集的美区真实评论数据（5 条），用于：
+
+- 无代理环境下的功能演示
+- 开发调试
+- 面试官离线查看效果
+
+> 
+> 样例数据仅为缓存，不替代正常联网采集能力。程序支持任意 App 链接和任意评论数据集。
+
+## 异常处理
+
+表格
+
+| 场景 | 处理策略 |
+| --- | --- |
+| 采集失败 | 自动尝试 3 种端点格式；支持文件导入兜底 |
+| 模型调用失败 | 返回错误信息，不中断整体流程，该条归入 "其他" |
+| JSON 解析失败 | 正则提取 + markdown 清洗 + 外层引号剥离 |
+| 分类不在白名单 | 归入 "其他" 分类 |
+| 追溯无证据 | 在校验结果中标记为无效，列出具体项 |
+| 空数据输入 | 明确提示，不执行后续阶段 |
+
+## 追溯链路
+
+完整链路：**用户评论 → 分析结论 → 产品需求 → 测试用例**
+
+- 每个问题（Problem）关联多条评论证据
+- 每条需求（Requirement）关联问题 ID 和评论 ID
+- 每条测试用例（Test Case）关联需求 ID 和评论 ID
+- 追溯校验模块自动验证链路完整性，输出通过率
+
+## 许可证
+
+MIT

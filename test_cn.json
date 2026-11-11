@@ -1,0 +1,14 @@
+[
+    {
+        "review_id": "c1",
+        "content": "课程很好，但价格太贵了，希望增加免费课时",
+        "rating": 5,
+        "title": "贵"
+    },
+    {
+        "review_id": "c2",
+        "content": "付费墙太频繁，每次打开都弹窗",
+        "rating": 2,
+        "title": "弹窗"
+    }
+]
